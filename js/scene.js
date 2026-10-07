@@ -88,11 +88,12 @@ function setPatient(L){
 
 function buildPatient(L){
   const grp = new THREE.Group();
-  const regionMeshes = {};
+  const regionMeshes = {}, gowned = [], undressedOnly = [], handGroups = {};
   let skinColor = new THREE.Color(L.skin);
   if(L.jaundice) skinColor = skinColor.clone().lerp(new THREE.Color('#d9b23a'), L.jaundice*.45);
   if(L.pallor) skinColor = skinColor.clone().lerp(new THREE.Color('#e6ddd6'), L.pallor*.35);
   const skinM = () => new THREE.MeshStandardMaterial({color:skinColor, roughness: L.sweat ? .32 : .72, metalness: L.sweat ? .06 : 0});
+  const darkSkin = skinColor.clone().multiplyScalar(.72);
   const gT = gownTex();
   const gownM = () => new THREE.MeshStandardMaterial({map:gT, roughness:.9});
   const mk = (geo, mat, parent, pos, region) => {
@@ -100,6 +101,9 @@ function buildPatient(L){
     if(region){ m.userData.region = region; (regionMeshes[region] = regionMeshes[region] || []).push(m); }
     return m;
   };
+  // A gowned mesh swaps between gown and skin when the gown is removed
+  const gm = (geo, parent, pos, region) => { const m = mk(geo, gownM(), parent, pos, region); m.userData.gownMat = m.material; m.userData.skinMat = skinM(); gowned.push(m); return m; };
+  const nude = (m) => { m.visible = false; undressedOnly.push(m); return m; };
   const limb = (parent, a, b, r1, r2, mat, region) => {
     const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = new THREE.Vector3().subVectors(B,A), len = d.length();
     const m = mk(new THREE.CylinderGeometry(r2, r1, len, 14), mat, parent, [0,0,0], region);
@@ -111,15 +115,49 @@ function buildPatient(L){
   const depth = L.barrel ? .95 : H==='obese' ? .9 : H==='heavy' ? .8 : .68;
   const torso = new THREE.Group(); torso.position.set(0,.736,.125); torso.rotation.x = -0.96; grp.add(torso);
 
-  const abd = mk(new THREE.CylinderGeometry(.18*wide, .175*wide*(H==='obese'?1.18:1), .3, 24), gownM(), torso, [0,.17,0], 'abd');
-  abd.scale.z = depth * (L.ascites ? 1.55 : H==='obese' ? 1.25 : H==='heavy' ? 1.1 : 1);
-  if(L.ascites) abd.scale.x = 1.12;
-  const pel = mk(new THREE.SphereGeometry(.19*wide, 20, 14), gownM(), torso, [0,.02,0]); pel.scale.set(1,.6,depth);
-  const chestR = mk(new THREE.CylinderGeometry(.205*wide, .185*wide, .32, 20, 1, false, Math.PI, Math.PI), gownM(), torso, [0,.46,0], 'lungR');
-  const chestL = mk(new THREE.CylinderGeometry(.205*wide, .185*wide, .32, 20, 1, false, 0, Math.PI), gownM(), torso, [0,.46,0], 'lungL');
+  const abdZ = depth * (L.ascites ? 1.55 : H==='obese' ? 1.25 : H==='heavy' ? 1.1 : 1);
+  const abd = gm(new THREE.CylinderGeometry(.18*wide, .175*wide*(H==='obese'?1.18:1), .3, 24), torso, [0,.17,0], 'abd');
+  abd.scale.z = abdZ; if(L.ascites) abd.scale.x = 1.12;
+  const pel = gm(new THREE.SphereGeometry(.19*wide, 20, 14), torso, [0,.02,0]); pel.scale.set(1,.6,depth);
+  const chestR = gm(new THREE.CylinderGeometry(.205*wide, .185*wide, .32, 20, 1, false, Math.PI, Math.PI), torso, [0,.46,0], 'lungR');
+  const chestL = gm(new THREE.CylinderGeometry(.205*wide, .185*wide, .32, 20, 1, false, 0, Math.PI), torso, [0,.46,0], 'lungL');
   chestR.scale.z = chestL.scale.z = depth;
-  const capTop = mk(new THREE.SphereGeometry(.205*wide, 20, 10, 0, Math.PI*2, 0, Math.PI/2), gownM(), torso, [0,.6,0]); capTop.scale.set(1,.35,depth);
-  for(const s of [-1,1]) mk(new THREE.SphereGeometry(.075*wide, 14, 10), gownM(), torso, [s*.2*wide,.575,0]);
+  const capTop = gm(new THREE.SphereGeometry(.205*wide, 20, 10, 0, Math.PI*2, 0, Math.PI/2), torso, [0,.6,0]); capTop.scale.set(1,.35,depth);
+  for(const s of [-1,1]) gm(new THREE.SphereGeometry(.075*wide, 14, 10), torso, [s*.2*wide,.575,0]);
+  // surface helpers (torso-local front surface)
+  const chestFront = (x, y) => { const r = (.185 + (.205-.185)*Math.min(1,Math.max(0,(y-.30)/.32)))*wide; return depth*Math.sqrt(Math.max(0, r*r - x*x)); };
+  const abdFront = (x) => { const r = .18*wide*(L.ascites?1.12:1); return abdZ*Math.sqrt(Math.max(0, r*r - x*x)); };
+  // breasts / chest wall
+  if(L.sex==='F'){ for(const s of [-1,1]){ const b = gm(new THREE.SphereGeometry(.07*wide, 16, 12), torso, [s*.085*wide,.45,chestFront(s*.085*wide,.45)-.02], s<0?'lungR':'lungL'); b.scale.set(1,.9,.7); } }
+  const gyn = (L.marks||[]).includes('gyn');
+  if(L.sex!=='F' && gyn) for(const s of [-1,1]){ const b = nude(mk(new THREE.SphereGeometry(.045, 12, 10), skinM(), torso, [s*.085*wide,.46,chestFront(s*.085*wide,.46)-.012])); b.scale.set(1,.9,.6); }
+  for(const s of [-1,1]){
+    const nz = L.sex==='F' ? chestFront(s*.085*wide,.44) + .035 : chestFront(s*.085*wide,.46) + (gyn ? .016 : .002);
+    const n = nude(mk(new THREE.SphereGeometry(.009, 10, 8), new THREE.MeshStandardMaterial({color:darkSkin, roughness:.6}), torso, [s*.085*wide, L.sex==='F'?.44:.46, nz]));
+    n.scale.set(1,1,.4); n.castShadow = false;
+  }
+  const umb = nude(mk(new THREE.SphereGeometry(.007, 8, 6), new THREE.MeshStandardMaterial({color:darkSkin.clone().multiplyScalar(.7)}), torso, [0,.12,abdFront(0)]));
+  umb.castShadow = false;
+  // skin marks (visible with the gown off)
+  const marks = new Set(L.marks || []);
+  if(marks.has('spiders')) for(const [x,y] of [[-.08,.55],[.05,.58],[.11,.52],[-.13,.5],[0,.6]]){ const sp = nude(mk(new THREE.SphereGeometry(.006, 8, 6), std('#c0222a',.5), torso, [x*wide,y,chestFront(x*wide,y)])); sp.castShadow = false;
+    for(let k=0;k<4;k++){ const leg = nude(mk(new THREE.BoxGeometry(.016,.0016,.0016), std('#c0222a',.5), torso, [x*wide,y,chestFront(x*wide,y)+.001])); leg.rotation.z = k*Math.PI/4; leg.castShadow = false; } }
+  if(marks.has('caput')) for(let k=0;k<7;k++){ const a = k/7*Math.PI*2; const x0 = Math.cos(a)*.03, y0 = .12+Math.sin(a)*.03, x1 = Math.cos(a+.3)*.08, y1 = .12+Math.sin(a+.3)*.08;
+    nude(limb(torso, [x0,y0,abdFront(x0)+.002], [x1,y1,abdFront(x1)+.002], .004, .003, std('#4a5f94',.5))); }
+  if(marks.has('sternotomy')){ const sc = nude(mk(new THREE.BoxGeometry(.008,.24,.004), std('#b06a6a',.6), torso, [0,.46,chestFront(0,.46)+.001])); sc.castShadow = false; }
+  // pubic area and genitals (schematic, chaperoned GU exam)
+  const hairM = std(L.hair,.95);
+  const pub = nude(mk(new THREE.SphereGeometry(.06*wide, 14, 10), new THREE.MeshStandardMaterial({color:new THREE.Color(L.hair).multiplyScalar(.8), roughness:.95}), torso, [0,-.005,abdFront(0)*.82], 'gu'));
+  pub.scale.set(1,.55,.3);
+  if(L.sex==='F'){
+    const v = nude(mk(new THREE.SphereGeometry(.032, 12, 10), skinM(), grp, [0,.79,.2], 'gu')); v.scale.set(.8,.55,1.2);
+    const cleft = nude(mk(new THREE.BoxGeometry(.004,.006,.05), new THREE.MeshStandardMaterial({color:darkSkin.clone().multiplyScalar(.7)}), grp, [0,.807,.205], 'gu')); cleft.castShadow = false;
+  } else {
+    const scro = nude(mk(new THREE.SphereGeometry(.03, 14, 10), new THREE.MeshStandardMaterial({color:darkSkin, roughness:.8}), grp, [0,.782,.235], 'gu')); scro.scale.set(1.15,.8,1);
+    nude(limb(grp, [0,.805,.19], [0,.8,.27], .015, .014, skinM(), 'gu'));
+    nude(mk(new THREE.SphereGeometry(.016, 12, 10), new THREE.MeshStandardMaterial({color:darkSkin.clone().lerp(new THREE.Color('#b56a6a'),.3), roughness:.6}), grp, [0,.8,.275], 'gu'));
+  }
+  // heart hotspot
   const hz = .195*wide*depth + .006;
   const heartHot = mk(new THREE.SphereGeometry(.07, 18, 12), new THREE.MeshBasicMaterial({color:0x6cf0e0, transparent:true, opacity:0, depthWrite:false}), torso, [.06,.42,hz], 'heart');
   heartHot.scale.z = .25; heartHot.castShadow = false;
@@ -153,7 +191,6 @@ function buildPatient(L){
     for(const s of [-1,1]){ const r = mk(new THREE.SphereGeometry(.03, 12, 8), rashM, headG, [s*.046,-.012,.084], 'heent'); r.scale.set(1,.7,.35); r.rotation.y = s*.5; r.castShadow = false; }
     const b = mk(new THREE.SphereGeometry(.014, 10, 8), rashM, headG, [0,.004,.106], 'heent'); b.scale.set(1,.6,.4); b.castShadow = false;
   }
-  const hairM = std(L.hair,.9);
   const cap = mk(new THREE.SphereGeometry(.117, 24, 16, 0, Math.PI*2, 0, Math.PI*.5), hairM, headG, [0,.008,-.008], 'heent'); cap.rotation.x = -0.5; cap.scale.set(.95,1.05,1);
   if(L.sex==='F'){ const long = mk(new THREE.SphereGeometry(.12, 20, 14), hairM, headG, [0,-.07,-.05], 'heent'); long.scale.set(1.05,1.25,.55); }
   if(L.o2==='cannula'){
@@ -165,19 +202,21 @@ function buildPatient(L){
     const mask = mk(new THREE.SphereGeometry(.062, 18, 12, 0, Math.PI*2, 0, Math.PI/2), mm, headG, [0,-.035,.085], 'heent'); mask.rotation.x = Math.PI/2; mask.scale.set(1,.7,1.2);
     const bag = mk(new THREE.SphereGeometry(.05, 12, 10), mm, headG, [0,-.13,.13]); bag.scale.set(1,1.3,.8);
   }
-  // arms + hands
+  // arms + hands (hands are groups so they can tremor or flap)
   const tipC = mixHex(L.skin, '#7880b6', Math.min(1,(L.cyan||0)*.9));
   for(const s of [-1,1]){
     const sh = [s*.215*wide,.56,0], el = [s*.255*wide,.31,.03], wr = [s*.265*wide,.08,.07];
-    limb(torso, sh, [s*.23*wide,.47,.01], .06*wide, .058*wide, gownM());
+    const sleeve = limb(torso, sh, [s*.23*wide,.47,.01], .06*wide, .058*wide, gownM()); sleeve.userData.gownMat = sleeve.material; sleeve.userData.skinMat = skinM(); gowned.push(sleeve);
     limb(torso, sh, el, .048*wide, .042*wide, skinM());
     limb(torso, el, wr, .041*wide, .033, skinM(), 'hands');
     if(L.track) for(let i=0;i<6;i++){ const t = .25 + i*.09; mk(new THREE.SphereGeometry(.004, 6, 4), std('#5a2f2f',.6), torso, [el[0]+(wr[0]-el[0])*t + s*.02, el[1]+(wr[1]-el[1])*t, el[2]+(wr[2]-el[2])*t+.032], 'hands'); }
-    const hand = mk(new THREE.SphereGeometry(.04, 14, 10), skinM(), torso, [wr[0], wr[1]-.045, wr[2]+.005], 'hands'); hand.scale.set(1,1.35,.55);
+    if(L.pustules) for(let i=0;i<3;i++){ const t = .3 + i*.2; const p = mk(new THREE.SphereGeometry(.006, 8, 6), std('#efe2a0',.5), torso, [el[0]+(wr[0]-el[0])*t - s*.015, el[1]+(wr[1]-el[1])*t, el[2]+(wr[2]-el[2])*t+.035], 'skin'); const ring = mk(new THREE.SphereGeometry(.011, 8, 6), new THREE.MeshStandardMaterial({color:'#c0453a', transparent:true, opacity:.6}), torso, p.position.toArray()); ring.scale.z = .3; }
+    const hg = new THREE.Group(); hg.position.set(...wr); torso.add(hg); handGroups[s<0?'R':'L'] = hg;
+    const hand = mk(new THREE.SphereGeometry(.04, 14, 10), skinM(), hg, [0,-.045,.005], 'hands'); hand.scale.set(1,1.35,.55);
     for(let f=0; f<4; f++){
-      const fx = wr[0] + (f-1.5)*.017, base = [fx, wr[1]-.085, wr[2]+.01], tip = [fx, wr[1]-.13 + Math.abs(f-1.5)*.008, wr[2]+.012];
-      limb(torso, base, tip, .0085, .008, skinM(), 'hands');
-      mk(new THREE.SphereGeometry(L.clubbing ? .016 : .0095, 10, 8), new THREE.MeshStandardMaterial({color:tipC, roughness:.5}), torso, tip, 'hands');
+      const fx = (f-1.5)*.017, base = [fx, -.085, .01], tip = [fx, -.13 + Math.abs(f-1.5)*.008, .012];
+      limb(hg, base, tip, .0085, .008, skinM(), 'hands');
+      mk(new THREE.SphereGeometry(L.clubbing ? .016 : .0095, 10, 8), new THREE.MeshStandardMaterial({color:tipC, roughness:.5}), hg, tip, 'hands');
     }
   }
   // legs
@@ -187,7 +226,8 @@ function buildPatient(L){
     const legM = (L.swollen===sideName) ? new THREE.MeshStandardMaterial({color:mixHex(L.skin,'#c0574a',.3), roughness:.6}) : skinM();
     const hx = s*.1*wide;
     limb(grp, [hx,.705,.15], [hx,.7,.58], .08*wide, .068*wide, skinM());
-    mk(new THREE.SphereGeometry(.06*wide, 12, 10), skinM(), grp, [hx,.7,.58], 'joints');
+    const kneeHot = L.knee===sideName;
+    const knee = mk(new THREE.SphereGeometry((kneeHot ? .078 : .06)*wide, 12, 10), kneeHot ? new THREE.MeshStandardMaterial({color:mixHex(L.skin,'#cc4a3c',.4), roughness:.5}) : skinM(), grp, [hx,.7,.58], 'joints');
     limb(grp, [hx,.7,.58], [s*.095,.688,.97], (sw?.078:.06)*wide, (sw?.062:.045), legM, 'legs');
     if(L.petechiae) for(let i=0;i<16;i++){ const t = .1 + Math.random()*.8, a = (Math.random()-.5)*2.2; mk(new THREE.SphereGeometry(.0035, 5, 4), std('#a01818',.6), grp, [hx + (s*.095-hx)*t + Math.sin(a)*.058, .69 + Math.cos(a)*.058, .58 + .39*t], 'legs'); }
     mk(new THREE.BoxGeometry(.075,.15,.065), skinM(), grp, [s*.095,.75,1.0], 'joints');
@@ -197,7 +237,17 @@ function buildPatient(L){
   }
   const blanket = mk(new THREE.BoxGeometry(.68*wide,.07,.6), new THREE.MeshStandardMaterial({map: canvasTex(64,64,(g,w,h)=>{ g.fillStyle='#5f86a3'; g.fillRect(0,0,w,h); g.fillStyle='#6f95b1'; g.fillRect(0,0,w,8); }, [1,4]), roughness:.95}), grp, [0,.8,.36]);
   blanket.rotation.x = .02;
-  return {grp, torso, chestR, chestL, abd, jvd, head:headG, regionMeshes, look:L, depth, abdZ: abd.scale.z};
+  return {grp, torso, chestR, chestL, abd, jvd, head:headG, regionMeshes, look:L, depth, abdZ, gowned, undressedOnly, blanket, handGroups, gownOn:true};
+}
+
+function setGown(on){
+  if(!pat) return;
+  setHover(null);
+  pat.gownOn = on;
+  pat.gowned.forEach(m=>{ m.material = on ? m.userData.gownMat : m.userData.skinMat; });
+  pat.undressedOnly.forEach(m=>{ m.visible = !on; });
+  pat.blanket.visible = on;
+  const b = document.getElementById('gownBtn'); if(b) b.textContent = on ? 'Remove gown' : 'Replace gown';
 }
 
 /* ---------- camera ---------- */
@@ -208,6 +258,7 @@ function camPreset(name){
   if(name==='chest'){ pat.chestR.getWorldPosition(w); return {az:-0.35, el:.85, dist:1.25, target:w.clone()}; }
   if(name==='hands'){ return {az:-1.2, el:.7, dist:1.0, target:new THREE.Vector3(0,.72,.15)}; }
   if(name==='legs'){ return {az:-0.6, el:.6, dist:1.3, target:new THREE.Vector3(0,.72,.78)}; }
+  if(name==='pelvis'){ return {az:-0.5, el:.95, dist:.9, target:new THREE.Vector3(0,.8,.2)}; }
   return {az:-0.75, el:.42, dist:2.9, target:new THREE.Vector3(0,.92,-.05)};
 }
 function setCam(name, instant){
@@ -238,7 +289,8 @@ function pick(ev){
   const r = document.getElementById('gl').getBoundingClientRect();
   const v = new THREE.Vector2(((ev.clientX-r.left)/r.width)*2-1, -((ev.clientY-r.top)/r.height)*2+1);
   raycaster.setFromCamera(v, camera);
-  const hit = raycaster.intersectObject(patientGroup, true)[0];
+  const shown = o => { for(let n=o; n; n=n.parent){ if(!n.visible) return false; } return true; };
+  const hit = raycaster.intersectObject(patientGroup, true).find(h=>shown(h.object));
   return hit && hit.object.userData.region ? hit.object.userData.region : null;
 }
 function setHover(region){
@@ -254,7 +306,7 @@ function setHover(region){
 function bindPointer(cv){
   const pts = new Map(); let moved = 0, pinch0 = 0;
   const tip = document.getElementById('tip'), view = document.getElementById('view');
-  cv.addEventListener('pointerdown', e=>{ cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); moved = 0; if(pts.size===2){ const [a,b] = [...pts.values()]; pinch0 = Math.hypot(a.x-b.x, a.y-b.y); } });
+  cv.addEventListener('pointerdown', e=>{ if(gaitState){ stopGait(); return; } cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); moved = 0; if(pts.size===2){ const [a,b] = [...pts.values()]; pinch0 = Math.hypot(a.x-b.x, a.y-b.y); } });
   cv.addEventListener('pointermove', e=>{
     if(pts.has(e.pointerId)){
       const p = pts.get(e.pointerId); const dx = e.clientX-p.x, dy = e.clientY-p.y; p.x = e.clientX; p.y = e.clientY;
@@ -320,9 +372,142 @@ function drawMonitor(t){
   monTex.needsUpdate = true;
 }
 
+/* ---------- gait exam: a standing patient walks across the room ---------- */
+const GAITS = {
+  normal:     {A:.34, K:.62, f:.9,  B:.28, stoop:.02, base:0,   turn:1.0},
+  shuffle:    {A:.11, K:.16, f:1.3, B:.03, stoop:.34, base:0,   turn:2.2, tremor:'R', armR:.2},
+  magnetic:   {A:.11, K:.06, f:.62, B:.22, stoop:.08, base:.11, turn:2.4, turnOut:.35},
+  ataxic:     {A:.3,  K:1.0, f:.6,  B:.1,  stoop:.16, base:.12, turn:1.8, sway:.07, armsOut:.35, look:.35, romberg:true},
+  hemiparetic:{A:.28, K:.55, f:.55, B:.22, stoop:.05, base:0,   turn:1.8, hemi:'R'},
+  antalgic:   {A:.3,  K:.55, f:.8,  B:.24, stoop:.03, base:0,   turn:1.2, limp:'R'},
+};
+let walker = null, gaitState = null;
+function buildWalker(L){
+  const root = new THREE.Group();
+  const wide = L.habitus==='obese'?1.2 : L.habitus==='heavy'?1.1 : L.habitus==='thin'?.92 : 1;
+  const skin = new THREE.MeshStandardMaterial({color:new THREE.Color(L.skin), roughness:.7});
+  const gown = new THREE.MeshStandardMaterial({map:gownTex(), roughness:.9});
+  const sock = std('#d7dde2',.9), hairM = std(L.hair,.9);
+  const seg = (parent, len, r1, r2, mat) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, 12), mat); m.position.y = -len/2; m.castShadow = true; parent.add(m); return m; };
+  const torso = new THREE.Group(); torso.position.y = .94; root.add(torso);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.2*wide, .19*wide, .58, 18), gown); body.position.y = .27; body.scale.z = .62; body.castShadow = true; torso.add(body);
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(.2*wide, .23*wide, .22, 18, 1, true), gown); skirt.position.y = -.08; skirt.scale.z = .7; torso.add(skirt);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.05,.055,.1,12), skin); neck.position.y = .6; torso.add(neck);
+  const head = new THREE.Group(); head.position.y = .74; torso.add(head);
+  const hs = new THREE.Mesh(new THREE.SphereGeometry(.11, 20, 14), skin); hs.scale.set(.92,1.06,1); hs.castShadow = true; head.add(hs);
+  const hc = new THREE.Mesh(new THREE.SphereGeometry(.117, 20, 12, 0, Math.PI*2, 0, Math.PI*.5), hairM); hc.position.set(0,.01,-.01); hc.rotation.x = -.5; head.add(hc);
+  if(L.sex==='F'){ const lh = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), hairM); lh.position.set(0,-.06,-.05); lh.scale.set(1.05,1.25,.55); head.add(lh); }
+  for(const s of [-1,1]){ const e = new THREE.Mesh(new THREE.SphereGeometry(.012, 8, 6), std('#1d1d1d',.3)); e.position.set(s*.037,.02,.1); head.add(e); }
+  const arms = {}, legs = {};
+  for(const s of [-1,1]){
+    const k = s<0 ? 'R' : 'L';
+    const sh = new THREE.Group(); sh.position.set(s*.22*wide,.52,0); torso.add(sh);
+    seg(sh, .3, .045, .04, skin);
+    const el = new THREE.Group(); el.position.y = -.3; sh.add(el);
+    seg(el, .26, .038, .03, skin);
+    const wr = new THREE.Group(); wr.position.y = -.27; el.add(wr);
+    const hd = new THREE.Mesh(new THREE.SphereGeometry(.042, 12, 10), skin); hd.position.y = -.04; hd.scale.set(.8,1.3,.6); wr.add(hd);
+    arms[k] = {sh, el, wr};
+    const hip = new THREE.Group(); hip.position.set(s*.1*wide,.94,0); root.add(hip);
+    seg(hip, .44, .075*wide, .06*wide, skin);
+    const kn = new THREE.Group(); kn.position.y = -.44; hip.add(kn);
+    seg(kn, .44, .055, .04, skin);
+    const an = new THREE.Group(); an.position.y = -.44; kn.add(an);
+    const ft = new THREE.Mesh(new THREE.BoxGeometry(.09,.055,.24), sock); ft.position.set(0,-.03,.06); ft.castShadow = true; an.add(ft);
+    legs[k] = {hip, kn, an};
+  }
+  root.visible = false; scene.add(root);
+  return {root, torso, head, arms, legs};
+}
+function startGait(type, onDone){
+  if(!glOK || !pat) { if(onDone) onDone(); return; }
+  if(walker){ scene.remove(walker.root); }
+  walker = buildWalker(pat.look);
+  const P = GAITS[type] || GAITS.normal;
+  const v = 1.9*Math.sin(P.A)*P.f;
+  const span = Math.min(3.0, v*5);
+  gaitState = {type, P, v, span, phase:0, stage:'walk1', t:0, stageT:0, onDone, prevCam:{az:cam.az, el:cam.el, dist:cam.dist, target:cam.target.clone()}};
+  walker.root.position.set(-span/2, 0, 1.75); walker.root.rotation.y = Math.PI/2; walker.root.visible = true;
+  patientGroup.visible = false;
+  cam.goal = null; cam.az = 0; cam.el = .06; cam.dist = 2.7; cam.target.set(0,.85,1.75);
+}
+function stopGait(){
+  if(!gaitState) return;
+  const g = gaitState; gaitState = null;
+  walker.root.visible = false; patientGroup.visible = true;
+  cam.az = g.prevCam.az; cam.el = g.prevCam.el; cam.dist = g.prevCam.dist; cam.target.copy(g.prevCam.target);
+  if(g.onDone) g.onDone();
+}
+function poseWalker(G, dt){
+  const P = G.P, W = walker, t = G.t;
+  const walking = G.stage==='walk1' || G.stage==='walk2';
+  const turning = G.stage==='turn';
+  const rate = walking ? 1 : turning ? .8 : 0;
+  G.phase += 2*Math.PI*P.f*dt*rate;
+  const amp = walking ? 1 : turning ? .35 : 0;
+  for(const k of ['R','L']){
+    const s = k==='R' ? -1 : 1, ph = G.phase + (k==='L' ? 0 : Math.PI);
+    const leg = W.legs[k], arm = W.arms[k];
+    const hemi = P.hemi===k, limp = P.limp===k;
+    const A = P.A * amp * (limp ? .65 : 1);
+    const swing = Math.max(0, Math.cos(ph));
+    leg.hip.rotation.x = -A*Math.sin(ph);
+    leg.kn.rotation.x = amp ? (hemi ? .06 : .05 + P.K*Math.pow(swing,1.5)) : 0;
+    leg.an.rotation.x = amp ? (P.romberg ? .25*Math.pow(swing,3) - .1 : -.15*swing) : 0;
+    leg.an.rotation.y = s*(P.turnOut||0);
+    leg.hip.rotation.z = s*((P.base||0) + (hemi ? .28*swing*amp : 0));
+    // arms
+    const B = (P.armR && k==='R') ? P.armR*P.B : P.B;
+    if(hemi){ arm.sh.rotation.x = -.35; arm.el.rotation.x = -1.7; arm.sh.rotation.z = s*.1; }
+    else if(G.stage==='romberg'){ arm.sh.rotation.x = -1.45; arm.el.rotation.x = 0; arm.sh.rotation.z = s*.05; }
+    else { arm.sh.rotation.x = B*amp*Math.sin(ph); arm.el.rotation.x = -.25; arm.sh.rotation.z = s*(.06 + (P.armsOut||0)); }
+    arm.wr.rotation.z = (P.tremor===k) ? .22*Math.sin(2*Math.PI*5*t) : 0;
+  }
+  if(G.stage==='romberg'){ for(const k of ['R','L']){ W.legs[k].hip.rotation.set(0,0,0); W.legs[k].kn.rotation.x = 0; W.legs[k].an.rotation.set(0,0,0); } }
+  // trunk
+  const sway = (P.sway||0)*Math.sin(G.phase*.5 + .7*Math.sin(t*1.7));
+  let roll = sway;
+  if(P.limp){ const s = P.limp==='R' ? -1 : 1; roll += s*.07*Math.max(0, -Math.cos(G.phase + (P.limp==='L' ? 0 : Math.PI))); }
+  if(G.stage==='romberg'){ const grow = Math.min(1, G.stageT/1.2); roll = .16*grow*Math.sin(t*2.4) + .06*grow*Math.sin(t*5.1); }
+  W.torso.rotation.set(P.stoop, 0, roll);
+  W.head.rotation.x = (P.look||0) - P.stoop*.5;
+  W.torso.position.y = .94 - .02*Math.abs(Math.sin(G.phase))*amp;
+}
+function updateGait(dt){
+  const G = gaitState; G.t += dt; G.stageT += dt;
+  const dur = G.span / Math.max(.05, G.v);
+  if(G.stage==='walk1' || G.stage==='walk2'){
+    const dir = G.stage==='walk1' ? 1 : -1;
+    walker.root.position.x += dir*G.v*dt;
+    if(G.stageT >= dur){ G.stage = G.stage==='walk1' ? 'turn' : (G.P.romberg ? 'romberg' : 'done'); G.stageT = 0; }
+  } else if(G.stage==='turn'){
+    const k = Math.min(1, G.stageT/G.P.turn);
+    walker.root.rotation.y = Math.PI/2 - Math.PI*k;
+    if(k>=1){ G.stage = 'walk2'; G.stageT = 0; }
+  } else if(G.stage==='romberg'){
+    walker.root.rotation.y = 0;
+    if(G.stageT > 3.5){ G.stage = 'done'; }
+  }
+  poseWalker(G, dt);
+  if(G.stage==='done') stopGait();
+}
+
+/* ---------- hand animations on the bed ---------- */
+function animateHands(t){
+  const tr = pat.look.tremor; if(!tr) return;
+  for(const k of ['R','L']){
+    const hg = pat.handGroups[k]; if(!hg) continue;
+    if(tr==='rest' && k==='R') hg.rotation.z = .16*Math.sin(2*Math.PI*5*t);
+    else if(tr==='fine') hg.rotation.x = .035*Math.sin(2*Math.PI*11*t + (k==='R'?0:1));
+    else if(tr==='asterixis'){ const p = ((t*.75 + (k==='R'?0:.4)) % 1); hg.rotation.x = p < .14 ? -.5*Math.sin(p/.14*Math.PI) : 0; }
+  }
+}
+
+let lastLoop = 0;
 function loop(ms){
-  const t = ms/1000;
-  if(pat && typeof curVitals === 'function'){
+  const t = ms/1000, dt = Math.min(.05, (ms - lastLoop)/1000 || 0); lastLoop = ms;
+  if(gaitState) updateGait(dt);
+  if(pat && !gaitState && typeof curVitals === 'function'){
     const v = curVitals();
     if(v){
       const rr = v.rr || 0;
@@ -335,6 +520,7 @@ function loop(ms){
       pat.abd.scale.z = pat.abdZ * (1 + ph*amp*.35);
       pat.head.rotation.x = ph*.02;
       if(pat.jvd) pat.jvd.scale.x = pat.jvd.scale.z = 1 + .35*Math.max(0, Math.sin(2*Math.PI*t*(v.hr||60)/60));
+      animateHands(t);
     }
   }
   if(ms - lastMon > 45){ drawMonitor(t); lastMon = ms; }

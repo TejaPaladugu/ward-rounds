@@ -163,7 +163,7 @@ button{font:inherit;color:inherit}
 .hero h1 span{color:var(--hr)}
 .hero p{margin:10px 0 0;color:var(--room-ink-2);max-width:60ch;font-size:16px}
 .ekg{width:100%;height:46px;display:block;margin-top:8px}
-.scoring{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.scoring{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .scoring div{background:var(--room-2);padding:10px 12px}
 .scoring b{display:block;font-family:var(--f-mono);font-size:24px;color:#fff}
 .scoring small{font-size:12px;color:var(--room-ink-2);display:block;line-height:1.3}
@@ -235,6 +235,41 @@ button{font:inherit;color:inherit}
   .readgrid{grid-template-columns:1fr}
   .bar{grid-template-columns:96px minmax(0,1fr) 56px}
 }
+
+.camBtns .gown{color:#f5d04a;border-color:#6b5a1e}
+.coach{border-bottom:1px solid var(--rule);background:#e6efe9}
+.coachhead{display:flex;justify-content:space-between;align-items:baseline;width:100%;border:0;background:none;padding:8px 18px;cursor:pointer;color:var(--ink)}
+.coachhead span{font-family:var(--f-display);font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-2)}
+.coachhead small{font-family:var(--f-mono);font-size:11px;color:var(--ink-2)}
+.coachlist{margin:0;padding:0 18px 10px 38px;font-size:13.5px;max-height:30vh;overflow:auto}
+.coachlist li{margin:4px 0;color:var(--ink-2)}
+.coachlist li.done{color:var(--useful);text-decoration:line-through;text-decoration-color:#2f7d4680}
+.coachlist li.next{color:var(--ink);font-weight:700}
+.coachlist li.decide em{font-style:normal;font-size:12px}
+.keyhint{display:inline-block;margin-left:6px;font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:var(--key);color:#fff;vertical-align:1px}
+.ychip{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:3px;color:#fff;vertical-align:1px}
+.ychip.key{background:var(--key)} .ychip.useful{background:var(--useful)} .ychip.optional{background:var(--opt)} .ychip.low{background:var(--low)} .ychip.harmful{background:var(--harm)} .ychip.none{background:transparent;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--rule)}
+.gy{margin-top:6px;font-size:13px;color:#2a3a46;display:flex;gap:6px;align-items:baseline}
+.gy .chip{margin-top:0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.cubtns{display:block;margin-top:4px;font-size:13px}
+.help.tight{padding:6px 0 0}
+.modetag{color:var(--rr)}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;max-width:620px}
+.mode-btn{text-align:left;border:1px solid var(--line);background:transparent;border-radius:6px;padding:10px 12px;cursor:pointer;color:var(--room-ink-2)}
+.mode-btn b{display:block;font-family:var(--f-display);font-size:18px;letter-spacing:.04em;color:var(--room-ink)}
+.mode-btn span{font-size:12.5px;line-height:1.3;display:block}
+.mode-btn[aria-pressed="true"]{border-color:var(--hr);background:#16302a}
+.filters{display:flex;flex-direction:column;gap:8px}
+.approach{margin:0;padding-left:22px;font-size:14.5px}
+.approach li{margin:6px 0}
+.approach li span{display:inline}
+.approach em{font-style:normal;font-family:var(--f-mono);font-size:11px;margin-left:8px}
+.approach em.yes{color:var(--useful)} .approach em.no{color:var(--low)}
+.closeup canvas{width:100%;max-width:560px;height:auto;display:block;margin:0 auto;border-radius:6px}
+.cutext{font-size:14.5px;margin:12px 0 4px}
+div.row{cursor:pointer}
+@media (max-width:860px){ .modes{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -257,6 +292,8 @@ button{font:inherit;color:inherit}
         <button data-cam="chest">Chest</button>
         <button data-cam="hands">Hands</button>
         <button data-cam="legs">Legs &amp; feet</button>
+        <button data-cam="pelvis">Pelvis</button>
+        <button id="gownBtn" data-gown="1" class="gown">Remove gown</button>
       </div>
       <div class="hint">Drag to orbit · scroll to zoom<br>Click the patient to examine</div>
       <div class="tip" id="tip" hidden></div>
@@ -265,6 +302,7 @@ button{font:inherit;color:inherit}
     </div>
     <aside class="panel">
       <div class="brief" id="brief"></div>
+      <div class="coach" id="coach" hidden></div>
       <nav class="tabs" role="tablist" id="tabs">
         <button role="tab" data-tab="history">History</button>
         <button role="tab" data-tab="exam">Exam</button>
@@ -273,7 +311,7 @@ button{font:inherit;color:inherit}
       </nav>
       <div class="tabbody" id="tabbody"></div>
       <div class="commit">
-        <small id="commitNote">Your diagnosis and plan are final once submitted.</small>
+        <small id="commitNote">Next: diagnosis, triage, then the plan.</small>
         <button class="btn" id="commitBtn">Diagnose</button>
       </div>
     </aside>
@@ -282,6 +320,7 @@ button{font:inherit;color:inherit}
 
 <div class="overlay" id="menu"></div>
 <div class="overlay" id="dxModal" hidden></div>
+<div class="overlay" id="triModal" hidden></div>
 <div class="overlay" id="planModal" hidden></div>
 <div class="overlay" id="debrief" hidden></div>
 <div class="overlay" id="imgModal" hidden></div>
@@ -295,7 +334,10 @@ button{font:inherit;color:inherit}
 <script src="js/cases-heme.js"></script>
 <script src="js/cases-id.js"></script>
 <script src="js/cases-rheum-neuro-tox.js"></script>
+<script src="js/cases-triage.js"></script>
+<script src="js/teaching.js"></script>
 <script src="js/imaging.js"></script>
+<script src="js/closeups.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/game.js"></script>
 </body></html>

@@ -118,25 +118,25 @@ const TEST = Object.fromEntries(TESTS.map(t=>[t.id,t]));
 const TEST_CATS = ['Labs','Urine','Micro','Imaging','Bedside','Procedures'];
 
 const HISTORY_Q = [
-  ['hpi','Tell me what’s been going on. When did it start?'],
-  ['cp','Any chest pain or palpitations?'],
-  ['cough','Any cough, sputum, or shortness of breath?'],
-  ['gi','Any nausea, vomiting, belly pain, or change in stools?'],
-  ['gu','Any urinary symptoms or change in urine?'],
-  ['neuro','Any headache, weakness, numbness, or vision changes?'],
-  ['fever','Fevers, chills, or night sweats?'],
-  ['wt','Any weight loss or change in appetite?'],
-  ['pmh','What medical problems do you have?'],
-  ['meds','What medications do you take?'],
-  ['etoh','Alcohol, tobacco, or drug use?'],
-  ['smoke','Have you ever smoked? How much?'],
-  ['expo','Work, hobbies, or exposures (dust, birds, mold, asbestos)?'],
-  ['travel','Any travel, immigration, or TB exposure?'],
-  ['sex','Sexual history and HIV risk?'],
-  ['immob','Recent surgery, long trips, or leg swelling?'],
-  ['sleep','How are you sleeping? Snoring?'],
-  ['ros','Any rashes, joint pain, or eye problems?'],
-  ['fhx','Anything that runs in the family?'],
+  ['hpi','Tell me what’s been going on. When did it start?', 120],
+  ['cp','Any chest pain or palpitations?', 15],
+  ['cough','Any cough, sputum, or shortness of breath?', 15],
+  ['gi','Any nausea, vomiting, belly pain, or change in stools?', 20],
+  ['gu','Any urinary symptoms or change in urine?', 15],
+  ['neuro','Any headache, weakness, numbness, or vision changes?', 20],
+  ['fever','Fevers, chills, or night sweats?', 10],
+  ['wt','Any weight loss or change in appetite?', 10],
+  ['pmh','What medical problems do you have?', 30],
+  ['meds','What medications do you take?', 30],
+  ['etoh','Alcohol, tobacco, or drug use?', 20],
+  ['smoke','Have you ever smoked? How much?', 10],
+  ['expo','Work, hobbies, or exposures (dust, birds, mold, asbestos)?', 20],
+  ['travel','Any travel, immigration, or TB exposure?', 15],
+  ['sex','Sexual history and HIV risk?', 30],
+  ['immob','Recent surgery, long trips, or leg swelling?', 15],
+  ['sleep','How are you sleeping? Snoring?', 20],
+  ['ros','Any rashes, joint pain, or eye problems?', 20],
+  ['fhx','Anything that runs in the family?', 15],
 ];
 const HIST_DEFAULT = {hpi:'It’s hard to say exactly.', cp:'No chest pain or palpitations.', cough:'No cough or breathing trouble.', gi:'No nausea, vomiting, or belly pain. Stools are normal.', gu:'Nothing unusual with urination.', neuro:'No headache, weakness, numbness, or vision changes.', fever:'No fevers, chills, or sweats.', wt:'My weight’s been steady.', pmh:'Nothing major.', meds:'No regular medications.', etoh:'A drink now and then. No drugs.', smoke:'Never smoked.', expo:'Nothing unusual at work or at home.', travel:'No recent travel. No TB contacts that I know of.', sex:'One long-term partner. No concerns.', immob:'No surgery, no long trips, no leg swelling.', sleep:'I sleep fine.', ros:'No rashes, joint pain, or eye trouble.', fhx:'Nothing I know of.'};
 
@@ -155,10 +155,15 @@ const EXAM_ITEMS = [
   ['legs','Legs and calves','inspect and palpate'],
   ['skin','Skin','inspect'],
   ['neuro','Neurologic exam','mental status, strength, reflexes'],
+  ['gait','Gait and station','watch the patient walk'],
+  ['gu','Genitourinary exam','external genitalia (chaperoned)'],
 ];
+/* Seconds each exam maneuver takes at the bedside */
+const EXAM_SECS = {general:15, heent:45, neck:40, lungR:40, lungL:40, heart:60, abd:60, rectal:120, back:20, hands:20, joints:60, legs:30, skin:45, neuro:240, gait:60, gu:120};
 const EXAM_NAME = Object.fromEntries(EXAM_ITEMS.map(e=>[e[0],e[1]]));
-const REGION_TIP = {heent:'Examine head, eyes, mouth', neck:'Examine the neck', lungR:'Listen to right lung', lungL:'Listen to left lung', heart:'Listen to heart', abd:'Palpate abdomen', hands:'Inspect hands, nails, pulses', legs:'Examine legs and calves', joints:'Examine joints'};
-const EXAM_DEFAULT = {general:'Alert and conversant. No acute distress.', heent:'Moist mucous membranes. Anicteric sclerae. Lips pink. No oral lesions.', neck:'Trachea midline. No JVD. No lymphadenopathy. Thyroid normal.', lungR:'Clear to auscultation. Resonant to percussion.', lungL:'Clear to auscultation. Resonant to percussion.', heart:'Regular rate and rhythm. Normal S1, S2. No murmurs, rubs, or gallops.', abd:'Soft, nontender, nondistended. No organomegaly.', rectal:'Normal tone. Brown stool, guaiac negative.', back:'No spinal or CVA tenderness.', hands:'No clubbing or cyanosis. Symmetric pulses. Capillary refill under 2 s.', joints:'No swelling, warmth, or tenderness.', legs:'No edema. Calves soft, nontender, and symmetric.', skin:'Warm and dry. No rashes.', neuro:'Alert and oriented ×3. Strength 5/5 throughout. Normal sensation and reflexes.'};
+const REGION_TIP = {heent:'Examine head, eyes, mouth', neck:'Examine the neck', lungR:'Listen to right lung', lungL:'Listen to left lung', heart:'Listen to heart', abd:'Palpate abdomen', hands:'Inspect hands, nails, pulses', legs:'Examine legs and calves', joints:'Examine joints', gu:'Genitourinary exam', skin:'Inspect skin'};
+const EXAM_DEFAULT = {general:'Alert and conversant. No acute distress.', heent:'Moist mucous membranes. Anicteric sclerae. Lips pink. No oral lesions.', neck:'Trachea midline. No JVD. No lymphadenopathy. Thyroid normal.', lungR:'Clear to auscultation. Resonant to percussion.', lungL:'Clear to auscultation. Resonant to percussion.', heart:'Regular rate and rhythm. Normal S1, S2. No murmurs, rubs, or gallops.', abd:'Soft, nontender, nondistended. No organomegaly.', rectal:'Normal tone. Brown stool, guaiac negative.', back:'No spinal or CVA tenderness.', hands:'No clubbing or cyanosis. Symmetric pulses. Capillary refill under 2 s.', joints:'No swelling, warmth, or tenderness.', legs:'No edema. Calves soft, nontender, and symmetric.', skin:'Warm and dry. No rashes.', neuro:'Alert and oriented ×3. Strength 5/5 throughout. Normal sensation and reflexes.', gu:'Normal external genitalia. No lesions, discharge, or masses.'};
+const GAIT_DEFAULT = {normal:'Normal gait: steady, normal stride length and arm swing. Tandem walk and Romberg normal.', unable:'Not safe to walk right now. The patient is too unstable or ill to stand.'};
 
 const DX = [
   ['stemi','ST-elevation myocardial infarction','Cardio'],['nstemi','Non-ST-elevation MI','Cardio'],['chf','Acute decompensated heart failure','Cardio'],
@@ -211,12 +216,12 @@ const VOCAB = {
   ct_chest: [['pe','Pulmonary artery filling defects'],['dissection','Intimal flap in the aorta'],['honey','Subpleural honeycombing'],['cavity','Thick-walled cavity'],
     ['mass','Central hilar mass'],['consol','Dense consolidation with air bronchograms'],['effusion','Pleural effusion'],['loculated','Loculated pleural collection with enhancing pleura'],
     ['ggo','Ground-glass opacities'],['emphysema','Centrilobular emphysema'],['lad','Mediastinal and hilar lymphadenopathy'],['ptx','Pneumothorax'],
-    ['nodules','Multiple peripheral nodules, some cavitating'],['micronod','Perilymphatic micronodules']],
+    ['nodules','Multiple peripheral nodules, some cavitating'],['micronod','Perilymphatic micronodules'],['nodule','Solitary pulmonary nodule']],
   ct_abd: [['pancreatitis','Enlarged pancreas with peripancreatic stranding'],['freeair','Free intraperitoneal air'],['ascites','Ascites'],['nodularliver','Small, nodular liver'],
     ['cbd','Dilated common bile duct'],['liverlesions','Multiple hypodense liver lesions'],['hydro','Hydronephrosis'],['perinephric','Perinephric fat stranding'],
     ['colonmass','Colonic mass'],['colitis','Colonic wall thickening'],['splenomeg','Splenomegaly']],
   ct_head: [['ich','Intraparenchymal hemorrhage'],['sah','Subarachnoid hemorrhage'],['infarct','Hypodense territorial infarct'],['mca_dense','Hyperdense MCA sign'],
-    ['sdh','Subdural hematoma'],['ring','Ring-enhancing lesions'],['shift','Midline shift']],
+    ['sdh','Subdural hematoma'],['ring','Ring-enhancing lesions'],['shift','Midline shift'],['vent','Ventricles enlarged out of proportion to sulci']],
   ecg: [['nsr','Normal sinus rhythm'],['stach','Sinus tachycardia'],['sbrady','Sinus bradycardia'],['afib','Atrial fibrillation'],['chb','Third-degree AV block'],
     ['stemi_inf','ST elevation in II, III, aVF'],['recip_lat','Reciprocal ST depression in I and aVL'],['stemi_ant','ST elevation in V1–V4'],['stdep','Lateral ST depression'],
     ['peakedT','Peaked T waves'],['wideQRS','Widened QRS'],['diffuseSTE','Diffuse ST elevation with PR depression'],['lowvolt','Low QRS voltage'],['alternans','Electrical alternans'],
@@ -232,3 +237,56 @@ const VOCAB = {
   us_renal: [['hydro','Hydronephrosis'],['stone_renal','Renal stone with shadowing']],
 };
 const VOCAB_NAME = {cxr:'Chest X-ray', ct_chest:'CT chest', ct_abd:'CT abdomen/pelvis', ct_head:'CT head', ecg:'12-lead ECG', smear:'Peripheral smear', urine:'Urine sediment', synovial:'Synovial fluid (polarized)', gram:'Gram stain', us_ruq:'RUQ ultrasound', us_renal:'Renal ultrasound'};
+
+/* ---------- care settings, triage, and outpatient turnaround ---------- */
+const CARE = ['ED','Inpatient','Outpatient'];
+const ACUITY = [
+  ['now','Emergent','Act within minutes: resuscitate, decompress, reperfuse, or start life-saving drugs now.'],
+  ['admit','Urgent, admit','Start treatment today and admit to the hospital (ward or step-down).'],
+  ['soon','Prompt outpatient','Treat or work up within days, without admission.'],
+  ['routine','Routine outpatient','Planned workup and follow-up over weeks.'],
+  ['watch','Watchful waiting','Reassure, monitor, or recheck later. No treatment needed now.'],
+];
+const ACUITY_NAME = Object.fromEntries(ACUITY.map(a=>[a[0],a[1]]));
+/* Outpatient result turnaround (minutes) by category, with per-test overrides */
+const OUT_DEFAULT = {Labs:1440, Urine:1440, Micro:2880, Imaging:4320, Bedside:null, Procedures:20160};
+const OUT_OVERRIDE = {cxr:1440, mri:10080, tte:10080, dexa:7200, pft:10080, hsat:10080, psg:30240, arthro:30, priorct:10, datscan:20160, taptest:20160, ecg:5, fsg:2, pef:2, nif:5, walk:20, bcx:2880};
+
+TESTS.push(
+  {id:'resp', name:'Respiratory viral PCR (COVID, flu, RSV)', cat:'Micro', cost:120, min:60, normal:'Negative'},
+  {id:'cdiff', name:'C. difficile GDH antigen and toxin', cat:'Micro', cost:90, min:60, normal:'Negative'},
+  {id:'stoolcx', name:'Stool culture', cat:'Micro', cost:80, min:120, normal:'No enteric pathogens'},
+  {id:'gcnaat', name:'Gonorrhea and chlamydia NAAT', cat:'Micro', cost:100, min:90, normal:'Both negative'},
+  {id:'rpr', name:'Syphilis serology (RPR)', cat:'Labs', cost:40, min:60, normal:'Nonreactive'},
+  {id:'tpo', name:'Thyroid peroxidase antibodies', cat:'Labs', cost:80, min:60, normal:'Negative'},
+  {id:'vitd', name:'25-OH vitamin D', cat:'Labs', cost:70, min:60, normal:'32 ng/mL'},
+  {id:'mma', name:'Methylmalonic acid and homocysteine', cat:'Labs', cost:150, min:120, normal:'MMA 0.2 µmol/L · Homocysteine 9 µmol/L (normal)'},
+  {id:'ifab', name:'Intrinsic factor antibodies', cat:'Labs', cost:90, min:120, normal:'Negative'},
+  {id:'cerulo', name:'Ceruloplasmin', cat:'Labs', cost:60, min:120, normal:'28 mg/dL (normal)'},
+  {id:'ucal', name:'24-hour urine calcium', cat:'Urine', cost:80, min:1440, normal:'180 mg/24 h'},
+  {id:'priorct', name:'Review the outside CT images', cat:'Imaging', cost:0, min:10, normal:'No abnormality on review.', img:{type:'ct', region:'chest', f:[]}},
+  {id:'pet', name:'PET-CT', cat:'Imaging', cost:2500, min:120, normal:'No FDG-avid lesions.'},
+  {id:'ccta', name:'Coronary CT angiogram', cat:'Imaging', cost:1100, min:60, normal:'No coronary stenosis. Calcium score 0.'},
+  {id:'usthy', name:'Thyroid ultrasound', cat:'Imaging', cost:250, min:40, normal:'Normal thyroid. No nodules.'},
+  {id:'hida', name:'HIDA scan', cat:'Imaging', cost:900, min:120, normal:'Normal gallbladder filling.'},
+  {id:'mrcp', name:'MRCP', cat:'Imaging', cost:1300, min:90, normal:'Normal biliary tree.'},
+  {id:'dexa', name:'DEXA bone density', cat:'Imaging', cost:250, min:30, normal:'T-scores above −1.0 (normal).'},
+  {id:'sestamibi', name:'Sestamibi parathyroid scan', cat:'Imaging', cost:900, min:180, normal:'No focal uptake.'},
+  {id:'datscan', name:'DaTscan (dopamine transporter SPECT)', cat:'Imaging', cost:3000, min:180, normal:'Normal striatal uptake.'},
+  {id:'stress', name:'Exercise stress test', cat:'Bedside', cost:600, min:60, normal:'Negative for ischemia at 10 METs.'},
+  {id:'taptest', name:'High-volume lumbar tap test', cat:'Procedures', cost:900, min:180, invasive:true, normal:'Opening pressure 14. No gait change after 30 mL removed.'},
+);
+TEST_IDX_REFRESH();
+function TEST_IDX_REFRESH(){ for(const t of TESTS) TEST[t.id] = t; }
+
+DX.push(
+  ['mskcp','Musculoskeletal (costochondral) chest pain','Cardio'],
+  ['nodule','Incidental pulmonary nodule (low risk)','Pulm'],['bronchitis','Acute bronchitis','Pulm'],
+  ['gallstones','Asymptomatic cholelithiasis','GI'],
+  ['subhypo','Subclinical hypothyroidism','Endo'],['hypothyroid','Overt hypothyroidism','Endo'],['fhh','Familial hypocalciuric hypercalcemia','Endo'],
+  ['b12','Vitamin B12 deficiency (subacute combined degeneration)','Heme/Onc'],['folate','Folate deficiency','Heme/Onc'],
+  ['dgi','Disseminated gonococcal infection','ID'],['reactive','Reactive arthritis','Rheum'],
+  ['parkinson','Parkinson disease','Neuro'],['ess','Essential tremor','Neuro'],['nph','Normal pressure hydrocephalus','Neuro'],
+  ['alzheimer','Alzheimer disease','Neuro'],['diabneuro','Diabetic peripheral neuropathy','Neuro'],
+);
+for(const d of DX) DXN[d[0]] = d[1];

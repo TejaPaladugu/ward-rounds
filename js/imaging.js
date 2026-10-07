@@ -226,6 +226,7 @@ function drawCTChest(g, f, o, R, side){
     if(f.has('nodules')) for(let i=0;i<4;i++){ const a = R()*Math.PI*2; const x = cx+Math.cos(a)*48, y = 182+Math.sin(a)*70, r = 6+R()*4; g.fillStyle='#8c8c8c'; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); if(i%2===0){ g.fillStyle='#050505'; g.beginPath(); g.arc(x,y,r*.45,0,Math.PI*2); g.fill(); } }
     g.restore();
   }
+  if(f.has('nodule')){ g.save(); g.clip(lungs.R); g.fillStyle='#8a8a8a'; g.beginPath(); g.arc(96,236,6.5,0,Math.PI*2); g.fill(); g.restore(); }
   const onSides = side==='B' ? ['R','L'] : [side];
   if(f.has('consol')) for(const k of onSides){ g.save(); g.clip(lungs[k]); const cx = k==='R'?112:248; g.fillStyle='#868686'; g.beginPath(); g.ellipse(cx+(k==='R'?-8:8), 230, 52, 34, 0, 0, Math.PI*2); g.fill(); g.strokeStyle='#121212'; g.lineWidth=2; for(let i=0;i<4;i++){ g.beginPath(); g.moveTo(cx, 215); g.lineTo(cx+(R()-.5)*60, 240+R()*12); g.stroke(); } g.restore(); }
   if(f.has('effusion')) for(const k of onSides){ g.save(); g.clip(lungs[k]); const cx = k==='R'?112:248; g.fillStyle='#5c5c5c'; g.beginPath(); g.ellipse(cx, 268, 62, 30, 0, 0, Math.PI*2); g.fill(); g.restore(); }
@@ -314,12 +315,13 @@ function drawCTHead(g, f, o, R, s){
   g.strokeStyle='#9a9a9a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(180,30); g.quadraticCurveTo(180+shift,178,180,326); g.stroke();
   // ventricles
   g.fillStyle='#1c1c1c';
+  const vs = f.has('vent') ? 1.9 : 1;
   for(const sd of [-1,1]){
-    const squeeze = (f.has('shift') && sd===s) ? .45 : 1;
-    g.beginPath(); g.ellipse(180+shift+sd*16, 160, 9*squeeze, 34*squeeze+6, sd*.25, 0, Math.PI*2); g.fill();
-    g.beginPath(); g.ellipse(180+shift+sd*22, 206, 7*squeeze, 14, sd*-.5, 0, Math.PI*2); g.fill();
+    const squeeze = ((f.has('shift') && sd===s) ? .45 : 1) * vs;
+    g.beginPath(); g.ellipse(180+shift+sd*16*Math.min(vs,1.5), 160, 9*squeeze, 34*squeeze+6, sd*.25, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(180+shift+sd*22*Math.min(vs,1.4), 206, 7*squeeze, 14, sd*-.5, 0, Math.PI*2); g.fill();
   }
-  g.fillRect(178+shift,176,4,20);
+  g.fillRect(178+shift-(vs-1)*4,176,4*vs,20);
   if(f.has('sah')){
     g.strokeStyle='#e4e4e4'; g.lineWidth=4;
     for(const sd of [-1,1]){ g.beginPath(); g.moveTo(180+sd*108, 170); g.quadraticCurveTo(180+sd*78, 175, 180+sd*56, 188); g.stroke(); }

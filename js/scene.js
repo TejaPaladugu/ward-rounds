@@ -41,6 +41,7 @@ function initScene(){
   const rail = new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,3,8), std('#aab4ba',.3,.6)); rail.rotation.x = Math.PI/2; rail.position.set(1.97,2.32,-.5); scene.add(rail);
 
   buildBed(); buildMonitor(); buildIVPole();
+  if(typeof loadHumans === 'function') loadHumans();
   new ResizeObserver(resize).observe(document.getElementById('view'));
   resize();
   bindPointer(cv);
@@ -49,14 +50,14 @@ function initScene(){
 
 function buildBed(){
   const metal = std('#a3adb4',.35,.55), mat = std('#dfe7ea',.8), dark = std('#4a5560',.6,.3);
-  const base = new THREE.Mesh(new THREE.BoxGeometry(1.0,.1,2.1), metal); base.position.set(0,.44,.02); base.castShadow = base.receiveShadow = true; scene.add(base);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.0,.1,2.3), metal); base.position.set(0,.44,.12); base.castShadow = base.receiveShadow = true; scene.add(base);
   const under = new THREE.Mesh(new THREE.BoxGeometry(.7,.3,1.4), dark); under.position.set(0,.25,.02); scene.add(under);
-  [[-.42,-.92],[.42,-.92],[-.42,.95],[.42,.95]].forEach(([x,z])=>{ const w = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.05,16), dark); w.rotation.z = Math.PI/2; w.position.set(x,.07,z); scene.add(w); const post = new THREE.Mesh(new THREE.BoxGeometry(.05,.3,.05), metal); post.position.set(x,.25,z); scene.add(post); });
-  const legs = new THREE.Mesh(new THREE.BoxGeometry(.92,.14,1.06), mat); legs.position.set(0,.56,.58); legs.castShadow = legs.receiveShadow = true; scene.add(legs);
+  [[-.42,-.92],[.42,-.92],[-.42,1.12],[.42,1.12]].forEach(([x,z])=>{ const w = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.05,16), dark); w.rotation.z = Math.PI/2; w.position.set(x,.07,z); scene.add(w); const post = new THREE.Mesh(new THREE.BoxGeometry(.05,.3,.05), metal); post.position.set(x,.25,z); scene.add(post); });
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(.92,.14,1.22), mat); legs.position.set(0,.56,.66); legs.castShadow = legs.receiveShadow = true; scene.add(legs);
   const backG = new THREE.Group(); backG.position.set(0,.56,.05); backG.rotation.x = 0.61; scene.add(backG);
   const bm = new THREE.Mesh(new THREE.BoxGeometry(.92,.14,1.0), mat); bm.position.set(0,0,-.5); bm.castShadow = bm.receiveShadow = true; backG.add(bm);
   const pillow = new THREE.Mesh(new THREE.BoxGeometry(.55,.1,.32), std('#f4f7f8',.9)); pillow.position.set(0,.11,-.86); pillow.castShadow = true; backG.add(pillow);
-  const foot = new THREE.Mesh(new THREE.BoxGeometry(.98,.36,.05), std('#7f8d96',.5,.2)); foot.position.set(0,.68,1.1); foot.castShadow = true; scene.add(foot);
+  const foot = new THREE.Mesh(new THREE.BoxGeometry(.98,.36,.05), std('#7f8d96',.5,.2)); foot.position.set(0,.68,1.28); foot.castShadow = true; scene.add(foot);
   const head = new THREE.Mesh(new THREE.BoxGeometry(.98,.5,.05), std('#7f8d96',.5,.2)); head.position.set(0,.85,-1.0); scene.add(head);
   for(const s of [-1,1]){ const r = new THREE.Mesh(new THREE.BoxGeometry(.03,.14,.7), metal); r.position.set(s*.5,.74,.5); r.castShadow = true; scene.add(r); }
 }
@@ -81,8 +82,8 @@ const gownTex = () => canvasTex(128,128,(g,w,h)=>{ g.fillStyle='#bcd2de'; g.fill
 
 function setPatient(L){
   if(!glOK) return;
-  if(patientGroup){ scene.remove(patientGroup); patientGroup.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
-  pat = buildPatient(L); patientGroup = pat.grp; scene.add(patientGroup);
+  if(patientGroup){ scene.remove(patientGroup); patientGroup.traverse(o=>{ if(o.geometry && !o.userData.keepGeo && !o.geometry.userData.keep) o.geometry.dispose(); }); }
+  pat = (typeof humanPatient === 'function' && humanPatient(L)) || buildPatient(L); patientGroup = pat.grp; scene.add(patientGroup);
   hovered = null;
 }
 
@@ -246,6 +247,7 @@ function setGown(on){
   pat.gownOn = on;
   pat.gowned.forEach(m=>{ m.material = on ? m.userData.gownMat : m.userData.skinMat; });
   pat.undressedOnly.forEach(m=>{ m.visible = !on; });
+  (pat.gownOnly||[]).forEach(m=>{ m.visible = on; });
   pat.blanket.visible = on;
   const b = document.getElementById('gownBtn'); if(b) b.textContent = on ? 'Remove gown' : 'Replace gown';
 }
@@ -256,6 +258,7 @@ function camPreset(name){
   if(!pat) return {az:-0.75, el:.42, dist:2.9, target:new THREE.Vector3(0,.92,-.05)};
   if(name==='head'){ pat.head.getWorldPosition(w); return {az:-0.25, el:.55, dist:.95, target:w.clone().add(new THREE.Vector3(0,-.06,0))}; }
   if(name==='chest'){ pat.chestR.getWorldPosition(w); return {az:-0.35, el:.85, dist:1.25, target:w.clone()}; }
+  if(name==='hands' && pat.handAnchor){ pat.handAnchor.getWorldPosition(w); return {az:-1.25, el:.8, dist:.85, target:w.clone().add(new THREE.Vector3(.06,0,-.08))}; }
   if(name==='hands'){ return {az:-1.2, el:.7, dist:1.0, target:new THREE.Vector3(0,.72,.15)}; }
   if(name==='legs'){ return {az:-0.6, el:.6, dist:1.3, target:new THREE.Vector3(0,.72,.78)}; }
   if(name==='pelvis'){ return {az:-0.5, el:.95, dist:.9, target:new THREE.Vector3(0,.8,.2)}; }
@@ -296,7 +299,7 @@ function pick(ev){
 function setHover(region){
   if(hovered === region || !pat) return;
   const paint = (rg, on) => (pat.regionMeshes[rg]||[]).forEach(m=>{
-    if(m.material.isMeshBasicMaterial) m.material.opacity = on ? .4 : 0;
+    if(m.material.isMeshBasicMaterial) m.material.opacity = on ? (m.userData.hl || .4) : 0;
     else if(m.material.emissive) m.material.emissive.setHex(on ? 0x1d5f59 : 0x000000);
   });
   if(hovered) paint(hovered, false);
@@ -383,6 +386,8 @@ const GAITS = {
 };
 let walker = null, gaitState = null;
 function buildWalker(L){
+  const hw = pat && pat.human && typeof humanWalker === 'function' && humanWalker(L);
+  if(hw) return hw;
   const root = new THREE.Group();
   const wide = L.habitus==='obese'?1.2 : L.habitus==='heavy'?1.1 : L.habitus==='thin'?.92 : 1;
   const skin = new THREE.MeshStandardMaterial({color:new THREE.Color(L.skin), roughness:.7});
@@ -429,7 +434,7 @@ function startGait(type, onDone){
   gaitState = {type, P, v, span, phase:0, stage:'walk1', t:0, stageT:0, onDone, prevCam:{az:cam.az, el:cam.el, dist:cam.dist, target:cam.target.clone()}};
   walker.root.position.set(-span/2, 0, 1.75); walker.root.rotation.y = Math.PI/2; walker.root.visible = true;
   patientGroup.visible = false;
-  cam.goal = null; cam.az = 0; cam.el = .06; cam.dist = 2.7; cam.target.set(0,.85,1.75);
+  cam.goal = null; cam.az = 0; cam.el = .06; cam.dist = walker.apply ? 3.4 : 2.7; cam.target.set(0, walker.apply ? 1.0 : .85, 1.75);
 }
 function stopGait(){
   if(!gaitState) return;
@@ -472,6 +477,7 @@ function poseWalker(G, dt){
   W.torso.rotation.set(P.stoop, 0, roll);
   W.head.rotation.x = (P.look||0) - P.stoop*.5;
   W.torso.position.y = .94 - .02*Math.abs(Math.sin(G.phase))*amp;
+  if(W.apply) W.apply();
 }
 function updateGait(dt){
   const G = gaitState; G.t += dt; G.stageT += dt;
@@ -494,6 +500,7 @@ function updateGait(dt){
 
 /* ---------- hand animations on the bed ---------- */
 function animateHands(t){
+  if(pat.animHands) return pat.animHands(t);
   const tr = pat.look.tremor; if(!tr) return;
   for(const k of ['R','L']){
     const hg = pat.handGroups[k]; if(!hg) continue;
@@ -514,13 +521,16 @@ function loop(ms){
       const ph = rr ? Math.sin(2*Math.PI*t*rr/60) : 0;
       const amp = pat.look.kussmaul ? .11 : rr > 28 ? .07 : .045;
       const asym = pat.look.asym;
-      pat.chestR.scale.z = pat.depth * (1 + ph*amp*(asym==='R' ? .15 : 1));
-      pat.chestL.scale.z = pat.depth * (1 + ph*amp*(asym==='L' ? .15 : 1));
-      pat.chestR.scale.x = 1 + ph*amp*.3*(asym==='R'?.15:1); pat.chestL.scale.x = 1 + ph*amp*.3*(asym==='L'?.15:1);
-      pat.abd.scale.z = pat.abdZ * (1 + ph*amp*.35);
-      pat.head.rotation.x = ph*.02;
-      if(pat.jvd) pat.jvd.scale.x = pat.jvd.scale.z = 1 + .35*Math.max(0, Math.sin(2*Math.PI*t*(v.hr||60)/60));
+      if(pat.breathe) pat.breathe(ph, amp, asym);
+      else {
+        pat.chestR.scale.z = pat.depth * (1 + ph*amp*(asym==='R' ? .15 : 1));
+        pat.chestL.scale.z = pat.depth * (1 + ph*amp*(asym==='L' ? .15 : 1));
+        pat.chestR.scale.x = 1 + ph*amp*.3*(asym==='R'?.15:1); pat.chestL.scale.x = 1 + ph*amp*.3*(asym==='L'?.15:1);
+        pat.abd.scale.z = pat.abdZ * (1 + ph*amp*.35);
+        pat.head.rotation.x = ph*.02;
+      }
       animateHands(t);
+      if(pat.jvd) pat.jvd.scale.x = pat.jvd.scale.z = 1 + .35*Math.max(0, Math.sin(2*Math.PI*t*(v.hr||60)/60));
     }
   }
   if(ms - lastMon > 45){ drawMonitor(t); lastMon = ms; }

@@ -21,9 +21,23 @@ History questions take seconds (about 2 minutes for the opening story). Exam man
 
 ## Exam features
 
-- **Gown:** remove it for a full skin exam (spider angiomas, caput medusae, gynecomastia, sternotomy scar). The chaperoned GU exam uses schematic genitalia.
+- **Gown:** remove it for a full skin exam (spider angiomas, caput medusae, gynecomastia, sternotomy scar). Underneath, the rigged models wear underwear, and GU findings are given in the exam text. The fallback mannequin uses schematic genitalia.
 - **Close-ups:** inside the mouth (thrush, palatal ulcers, glossitis, pigmentation, Mallampati IV), the eyes (icterus, conjunctival pallor, proptosis, ptosis), and the hands (clubbing, spoon nails, splinter hemorrhages, palmar erythema).
 - **Animations:** gait exam with a walking patient (normal, Parkinson shuffle, NPH magnetic, B12 sensory ataxia with a Romberg sway, antalgic), resting tremor, fine tremor, asterixis, Kussmaul breathing, and asymmetric chest rise.
+
+## Patient models
+
+Patients are rigged 3D humans: one man and two women, chosen by the patient's sex. They're TurboSquid free models, converted from FBX to compressed glTF in `models/` for personal use only; the original uploads are in `models/source/`. Each patient is posed lying on the bed, and the case changes the body:
+
+- **Skin, hair, and eyes:** tinted for jaundice, pallor, sweating, and cyanosis (lips and nails).
+- **Face:** blend shapes for ptosis, closed eyes, facial droop, proptosis, and wasted cheeks.
+- **Body shape:** a shader shapes soft tissue for ascites, obesity, a barrel chest, and gynecomastia. It also drives the chest and belly when the patient breathes.
+- **Limbs:** bones are scaled for calf swelling, pitting edema, a swollen knee, podagra, and clubbing.
+- **Skin findings:** small decals sit on the skin and move with the bones.
+- **Exam targets:** invisible regions attached to the bones are what you click to examine.
+- **Gait exam:** the same model stands up and walks.
+
+The models load over HTTP, so serve the folder rather than opening the file directly (see below). If they can't load, the game falls back to the original procedural mannequin.
 
 ## Scoring (100)
 
@@ -37,16 +51,16 @@ History questions take seconds (about 2 minutes for the opening story). Exam man
 
 After submitting, the debrief shows the triage rationale, the step-by-step approach in priority order (marking what you did), and the recommended workup with the reason for each test.
 
-## Cases (52)
+## Cases (53)
 
 Organized into three tiers by how common the condition is and how complex the patient is:
 
 - **Tier 1 · Bread & butter:** COPD exacerbation, CAP, OSA, STEMI, acute heart failure, AF with RVR, upper GI bleed, pancreatitis, hyperkalemia, DKA, iron deficiency (colon cancer), urosepsis, gout
 - **Tier 2 · Core shelf:** asthma, PE, tension pneumothorax, empyema, TB, SCLC with SIADH, cholangitis, SBP, rhabdomyolysis, thyroid storm, myeloma, acute chest syndrome, meningitis, endocarditis, lupus nephritis, giant cell arteritis, stroke, acetaminophen overdose
 - **Tier 3 · Zebras & complex:** sarcoidosis, IPF, ARDS, aortic dissection, adrenal crisis, TTP, HIT, PJP with new HIV, myasthenic crisis, normal pressure hydrocephalus
-- **Added for triage practice:** incidental lung nodule, acute bronchitis, subclinical hypothyroidism, asymptomatic gallstones, MGUS, asymptomatic hyperparathyroidism (watchful waiting); low-risk chest pain (safe discharge); C. difficile (inpatient); Parkinson disease, B12 deficiency, disseminated gonococcal infection
+- **Added for triage practice:** incidental lung nodule, acute bronchitis, subclinical hypothyroidism, asymptomatic gallstones, MGUS, asymptomatic hyperparathyroidism (watchful waiting); low-risk chest pain (safe discharge); C. difficile (inpatient); Parkinson disease, B12 deficiency, disseminated gonococcal infection, erectile dysfunction
 
-Each case is tagged ED (27), inpatient (12), or outpatient (13).
+Each case is tagged ED (27), inpatient (12), or outpatient (14).
 
 Unstable patients deteriorate on the monitor as the clock runs. The 3D patient shows visible signs: jaundice, pallor, cyanosis, clubbing, JVD, tracheal deviation, malar rash, ascites, edema, a gouty toe, petechiae, proptosis, ptosis, facial droop, and track marks.
 
@@ -58,11 +72,22 @@ Unstable patients deteriorate on the monitor as the clock runs. The 3D patient s
 - `js/teaching.js`: care setting, triage level, step-by-step approach, and extra exam findings for the original cases
 - `js/closeups.js`: mouth, eye, and hand close-up illustrations
 - `js/imaging.js`: the image renderer for every modality
-- `js/scene.js`: the Three.js room and patient
+- `js/scene.js`: the Three.js room, the fallback mannequin, camera, picking, and gait animation
+- `js/humans.js`: loads, poses, and dresses the rigged patient models
+- `js/vendor/`: Three.js r128 GLTFLoader, SkeletonUtils, and the meshopt decoder
+- `models/`: patient models (`.glb`), with the original FBX uploads in `models/source/`
 - `js/game.js`: game state, reading, scoring, and UI
 
 ## Running it
 
-Open `index.html` in a modern browser. It loads Three.js r128 from cdnjs, so it needs an internet connection. There's no build step.
+There's no build step. Serve the folder and open it in a modern browser:
+
+```
+cd ward-rounds
+python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+Opening `index.html` directly also works, but browsers block model loading from `file://`, so you'll see the simple mannequin instead. The game loads Three.js r128 from cdnjs, so it needs an internet connection.
 
 Clinical content follows common Step 2 CK teaching and is for study only. Verify anything that matters against current guidelines.

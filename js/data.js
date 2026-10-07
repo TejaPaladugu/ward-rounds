@@ -133,12 +133,13 @@ const HISTORY_Q = [
   ['expo','Work, hobbies, or exposures (dust, birds, mold, asbestos)?', 20],
   ['travel','Any travel, immigration, or TB exposure?', 15],
   ['sex','Sexual history and HIV risk?', 30],
+  ['sexfn','Any problems with sexual function (erections, libido, pain)?', 30],
   ['immob','Recent surgery, long trips, or leg swelling?', 15],
   ['sleep','How are you sleeping? Snoring?', 20],
   ['ros','Any rashes, joint pain, or eye problems?', 20],
   ['fhx','Anything that runs in the family?', 15],
 ];
-const HIST_DEFAULT = {hpi:'It’s hard to say exactly.', cp:'No chest pain or palpitations.', cough:'No cough or breathing trouble.', gi:'No nausea, vomiting, or belly pain. Stools are normal.', gu:'Nothing unusual with urination.', neuro:'No headache, weakness, numbness, or vision changes.', fever:'No fevers, chills, or sweats.', wt:'My weight’s been steady.', pmh:'Nothing major.', meds:'No regular medications.', etoh:'A drink now and then. No drugs.', smoke:'Never smoked.', expo:'Nothing unusual at work or at home.', travel:'No recent travel. No TB contacts that I know of.', sex:'One long-term partner. No concerns.', immob:'No surgery, no long trips, no leg swelling.', sleep:'I sleep fine.', ros:'No rashes, joint pain, or eye trouble.', fhx:'Nothing I know of.'};
+const HIST_DEFAULT = {hpi:'It’s hard to say exactly.', cp:'No chest pain or palpitations.', cough:'No cough or breathing trouble.', gi:'No nausea, vomiting, or belly pain. Stools are normal.', gu:'Nothing unusual with urination.', neuro:'No headache, weakness, numbness, or vision changes.', fever:'No fevers, chills, or sweats.', wt:'My weight’s been steady.', pmh:'Nothing major.', meds:'No regular medications.', etoh:'A drink now and then. No drugs.', smoke:'Never smoked.', expo:'Nothing unusual at work or at home.', travel:'No recent travel. No TB contacts that I know of.', sex:'One long-term partner. No concerns.', sexfn:'No problems.', immob:'No surgery, no long trips, no leg swelling.', sleep:'I sleep fine.', ros:'No rashes, joint pain, or eye trouble.', fhx:'Nothing I know of.'};
 
 const EXAM_ITEMS = [
   ['general','General appearance','look'],
@@ -273,6 +274,14 @@ TESTS.push(
   {id:'dexa', name:'DEXA bone density', cat:'Imaging', cost:250, min:30, normal:'T-scores above −1.0 (normal).'},
   {id:'sestamibi', name:'Sestamibi parathyroid scan', cat:'Imaging', cost:900, min:180, normal:'No focal uptake.'},
   {id:'datscan', name:'DaTscan (dopamine transporter SPECT)', cat:'Imaging', cost:3000, min:180, normal:'Normal striatal uptake.'},
+  {id:'shim', name:'SHIM (IIEF-5) erectile function questionnaire', cat:'Bedside', cost:0, min:5, normal:'Score 24/25 (no erectile dysfunction)'},
+  {id:'a1c', name:'Hemoglobin A1c', cat:'Labs', cost:40, min:60, normal:'5.4%'},
+  {id:'lipids', name:'Lipid panel', cat:'Labs', cost:40, min:60, normal:'LDL 98 · HDL 52 · TG 120 mg/dL'},
+  {id:'testo', name:'Morning total testosterone', cat:'Labs', cost:80, min:120, normal:'520 ng/dL (normal)'},
+  {id:'prolactin', name:'Prolactin', cat:'Labs', cost:60, min:120, normal:'9 ng/mL (normal)'},
+  {id:'psa', name:'PSA', cat:'Labs', cost:50, min:120, normal:'1.1 ng/mL'},
+  {id:'npt', name:'Nocturnal penile tumescence test', cat:'Bedside', cost:500, min:600, normal:'Normal nocturnal erections'},
+  {id:'penduplex', name:'Penile duplex ultrasound', cat:'Imaging', cost:600, min:60, normal:'Normal arterial inflow and venous occlusion'},
   {id:'stress', name:'Exercise stress test', cat:'Bedside', cost:600, min:60, normal:'Negative for ischemia at 10 METs.'},
   {id:'taptest', name:'High-volume lumbar tap test', cat:'Procedures', cost:900, min:180, invasive:true, normal:'Opening pressure 14. No gait change after 30 mL removed.'},
 );
@@ -287,6 +296,7 @@ DX.push(
   ['b12','Vitamin B12 deficiency (subacute combined degeneration)','Heme/Onc'],['folate','Folate deficiency','Heme/Onc'],
   ['dgi','Disseminated gonococcal infection','ID'],['reactive','Reactive arthritis','Rheum'],
   ['parkinson','Parkinson disease','Neuro'],['ess','Essential tremor','Neuro'],['nph','Normal pressure hydrocephalus','Neuro'],
-  ['alzheimer','Alzheimer disease','Neuro'],['diabneuro','Diabetic peripheral neuropathy','Neuro'],
+  ['alzheimer','Alzheimer disease','Neuro'],
+  ['erectile','Erectile dysfunction (vasculogenic)','Endo'],['psychogenic','Psychogenic erectile dysfunction','Endo'],['hypogonadism','Male hypogonadism','Endo'],['diabneuro','Diabetic peripheral neuropathy','Neuro'],
 );
 for(const d of DX) DXN[d[0]] = d[1];

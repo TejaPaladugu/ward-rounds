@@ -9,7 +9,6 @@ const HUMANS = {};           // name -> {scene, cache}
 let humanState = 'idle';     // idle | loading | ready | failed
 const ARM_DOWN = 1.02;       // radians from the model's A-pose to arms at the sides
 const ARM_BED = {sh:s => [.1, 0, s*.14], el:[-.15, 0, 0]};
-let BLANKET_Y = .826;
 const BED = {tilt:-0.96, hipFlex:-0.61, pelvis:[0, .745, .11]};
 const V3 = (x,y,z) => new THREE.Vector3(x,y,z);
 const Q = () => new THREE.Quaternion();
@@ -119,11 +118,15 @@ function shapeWeights(U, m, nz){ // per-bump weights (without amplitude), so sur
 }
 function shapedMat(mat, U, d){
   mat.skinning = true;
+  // the body has no UVs, so textured overlays wrap their fabric around the trunk in bind space (meters)
+  const projUV = !!mat.map;
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = SHAPE_GLSL + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n  transformed += shapeOff(position, normal);` + (d ? `\n  transformed += normalize(normal) * ${d.toFixed(4)};` : ''));
+    let vs = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n  transformed += shapeOff(position, normal);` + (d ? `\n  transformed += normalize(normal) * ${d.toFixed(4)};` : ''));
+    if(projUV) vs = vs.replace('#include <uv_vertex>', 'vUv = ( uvTransform * vec3( atan( position.x, -position.y ) * .16, position.z, 1. ) ).xy;');
+    sh.vertexShader = SHAPE_GLSL + vs;
   };
-  mat.customProgramCacheKey = () => 'shape' + (d||0);
+  mat.customProgramCacheKey = () => 'shape' + (d||0) + (projUV ? 'uv' : '');
   return mat;
 }
 function addOverlay(H, key, test, mat, d){
@@ -145,7 +148,7 @@ function buildHumanPatient(L, name){
   const model = THREE.SkeletonUtils.clone(src.scene);
   const sex = L.sex==='F' ? 'F' : 'M';
   const U = shapeUniforms();
-  const H = {src, model, bodyMeshes:[], srcMeshes:{}, U};
+  const H = {src, model, bodyMeshes:[], clothMeshes:[], srcMeshes:{}, U};
   src.scene.traverse(o => { if(o.isSkinnedMesh) H.srcMeshes[o.name] = o; });
 
   // materials: per-patient copies, tinted for the case
@@ -174,6 +177,7 @@ function buildHumanPatient(L, name){
     if(/Skin_/.test(n)){ o.material.map = null; o.material.roughness = L.sweat ? .3 : .62; o.material.metalness = L.sweat ? .05 : 0; o.material.needsUpdate = true; }
     if(/Skin_(Body|Arm|Leg)/.test(n)) H.bodyMeshes.push(o);
     if(o.isSkinnedMesh && /Skin_(Body|Arm|Leg)|Bra|Underwear|Boxers/.test(n)) shapedMat(o.material, U, 0);
+    if(o.isSkinnedMesh && /Bra|Underwear|Boxers/.test(n)) H.clothMeshes.push(o);
     if(o.isSkinnedMesh){ o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true; o.raycast = () => {}; o.userData.keepGeo = true; }
     if(o.morphTargetDictionary) morphMeshes.push(o);
   });
@@ -311,8 +315,8 @@ function buildHumanPatient(L, name){
   if(L.clubbing) for(const k of ['R','L']) for(const f of ['Index3','Mid3','Ring3','Pinky3']) rig.scl(k+'_'+f, 1.35, 1.05, 1.35);
 
   // gown: a fitted second skin over the trunk, upper arms and thighs
-  const gT = gownTex();
-  const gown = addOverlay(H, 'gown', n => /^(Hip|Pelvis|Waist|Spine0[12]|[LR]_(RibsTwist|Breast|Clavicle|UpperarmTwist0[12]|ThighTwist01))$/.test(n), new THREE.MeshStandardMaterial({map:gT, roughness:.9}), .016);
+  const GF = gownFabric(3);
+  const gown = addOverlay(H, 'gown', n => /^(Hip|Pelvis|Waist|Spine0[12]|[LR]_(RibsTwist|Breast|Clavicle|UpperarmTwist0[12]|ThighTwist01))$/.test(n), new THREE.MeshStandardMaterial({map:GF.map, normalMap:GF.normalMap, normalScale:new THREE.Vector2(.18, .18), roughness:.92}), .016);
   gown.forEach(m => gownOnly.push(m));
 
   // oxygen
@@ -349,7 +353,7 @@ function buildHumanPatient(L, name){
   const top = new THREE.Box3().setFromObject(rig.b.Head ? model.getObjectByName('EM3D_Base_Body_1') || model : model).max.y;
   const k = HUMAN_HEIGHT[sex] / (top || HUMAN_HEIGHT[sex]);
   const wide = H2==='obese' ? 1.18 : H2==='heavy' ? 1.08 : H2==='thin' ? .93 : 1;
-  return {model, rig, k, wide, P, regionMeshes, undressedOnly, gowned, gownOnly, movers, jvd, headAnchor, chestAnchor, handAnchor, U, chest0, belly0:U.uBelly.value, setMorph:morph};
+  return {model, rig, k, wide, P, bodyMeshes:H.bodyMeshes, clothMeshes:H.clothMeshes, regionMeshes, undressedOnly, gowned, gownOnly, movers, jvd, headAnchor, chestAnchor, handAnchor, U, chest0, belly0:U.uBelly.value, setMorph:morph};
 }
 
 /* ---------- lying on the bed ---------- */
@@ -367,11 +371,13 @@ function humanPatient(L){
   const restPose = () => { for(const s of [-1,1]){ armPose(rig, s, ARM_BED.sh(s), ARM_BED.el, [0, 0, 0]); legPose(rig, s, [BED.hipFlex, 0, s*.04], [.05, 0, 0], [.35, 0, 0]); } };
   restPose();
   rig.rot('Head', qE(.12, 0, 0));
-  const blanket = new THREE.Mesh(new THREE.BoxGeometry(.5*H.wide, .045, .56), new THREE.MeshStandardMaterial({map: canvasTex(64,64,(g,w,h)=>{ g.fillStyle='#5f86a3'; g.fillRect(0,0,w,h); g.fillStyle='#6f95b1'; g.fillRect(0,0,w,8); }, [1,4]), roughness:.95}));
-  blanket.position.set(0, BLANKET_Y, .42); blanket.castShadow = blanket.receiveShadow = true; grp.add(blanket);
+  // the blanket is simulated once against the posed body (arms stay on top of it)
+  grp.updateMatrixWorld(true);
+  const blanket = buildDrape(H.bodyMeshes.filter(m => !/Skin_Arm/.test(m.material.name)).concat(H.clothMeshes), H.U, {z0:BED.pelvis[2] - .13, seed:hashStr(L.skin), key:name + JSON.stringify(L)});
+  grp.add(blanket);
   const R = rig, look = L;
   return {
-    human:true, U:H.U, grp, torso:tilt, regionMeshes:H.regionMeshes, look:L, gowned:H.gowned, gownOnly:H.gownOnly, undressedOnly:H.undressedOnly,
+    human:true, U:H.U, H, grp, torso:tilt, regionMeshes:H.regionMeshes, look:L, gowned:H.gowned, gownOnly:H.gownOnly, undressedOnly:H.undressedOnly,
     blanket, handGroups:{}, gownOn:true, jvd:H.jvd, head:H.headAnchor, chestR:H.chestAnchor, handAnchor:H.handAnchor, depth:1, abdZ:1,
     breathe(ph, amp, asym){
       const rise = (ph + 1)*.5*amp*.2;

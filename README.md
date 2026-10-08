@@ -35,6 +35,7 @@ Patients are rigged 3D humans: one man and two women, chosen by the patient's se
 - **Limbs:** bones are scaled for calf swelling, pitting edema, a swollen knee, podagra, and clubbing.
 - **Skin findings:** small decals sit on the skin and move with the bones.
 - **Exam targets:** invisible regions attached to the bones are what you click to examine.
+- **Bedding:** the blanket is a small cloth simulation dropped onto each posed patient, so it follows the legs, folds, and bunches at the foot of the bed. Examining the legs or joints pulls it back. The gown and blanket fabrics (printed cotton and thermal waffle weave) are generated in code.
 - **Gait exam:** the same model stands up and walks.
 
 The models load over HTTP, so serve the folder rather than opening the file directly (see below). If they can't load, the game falls back to the original procedural mannequin.
@@ -74,6 +75,7 @@ Unstable patients deteriorate on the monitor as the clock runs. The 3D patient s
 - `js/imaging.js`: the image renderer for every modality
 - `js/scene.js`: the Three.js room, the fallback mannequin, camera, picking, and gait animation
 - `js/humans.js`: loads, poses, and dresses the rigged patient models
+- `js/drape.js`: the blanket cloth simulation and the fabric textures
 - `js/vendor/`: Three.js r128 GLTFLoader, SkeletonUtils, and the meshopt decoder
 - `models/`: patient models (`.glb`), with the original FBX uploads in `models/source/`
 - `js/game.js`: game state, reading, scoring, and UI

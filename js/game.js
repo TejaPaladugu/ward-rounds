@@ -111,6 +111,7 @@ function doExam(e){
   if(e==='heent') extra = `<button class="btn small" data-closeup="mouth">Look in the mouth</button><button class="btn small" data-closeup="eyes">Look at the eyes</button>`;
   if(e==='hands') extra = `<button class="btn small" data-closeup="hands">Look at hands and nails</button>`;
   if(e==='gait' && C.look.gait!=='unable'){ startGait(C.look.gait); extra = `<button class="btn small" data-gait="1">Watch again</button>`; ms = 16000; }
+  if((e==='legs' || e==='joints') && pat && pat.blanket && pat.blanket.visible){ pat.blanket.visible = false; extra += `<button class="btn small" data-drape="1">Replace blanket</button>`; }
   if(e==='gu' || e==='skin'){ setGown(false); if(e==='gu') setCam('pelvis'); extra = `<button class="btn small" data-gown="1">Replace gown</button>`; }
   const tip = guided() && (C.keyExam||[]).includes(e) ? `<div class="gy"><span class="chip key">Key</span> A key exam finding for this case.</div>` : '';
   showToast(`<h4>${EXAM_NAME[e]}<small>T+${fmtClock(S.clock)}</small></h4><div class="res"><div class="r plain">${finding}</div>${tip}${extra?`<div class="acts">${extra}</div>`:''}</div>`, ms);
@@ -481,6 +482,7 @@ document.addEventListener('click', e=>{
   if(el.id==='brandBtn'){ renderMenu(); return; }
   if(el.dataset.cam){ setCam(el.dataset.cam); return; }
   if(el.dataset.gown){ if(pat) setGown(!pat.gownOn); return; }
+  if(el.dataset.drape){ if(pat && pat.gownOn) pat.blanket.visible = true; return; }
   if(el.dataset.close){ $('#'+el.dataset.close).hidden = true; return; }
   if(el.classList.contains('x')){ hideToast(); return; }
   if(el.id==='dbRetry'){ startCase(C.id); return; }
